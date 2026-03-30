@@ -1620,6 +1620,10 @@ body.wave-unlocked .grain {
     background: linear-gradient(145deg, #111827, #0f172a);
 }
 
+.ss-card-image--grab-knife {
+    background: linear-gradient(145deg, #2b0a0a, #1b0b2c);
+}
+
 .ss-card-image--demo {
     background: linear-gradient(145deg, #1c1917, #292524);
 }
