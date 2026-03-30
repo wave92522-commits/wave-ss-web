@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WAVE SS — Доступ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="ambient-glow" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <div id="key-overlay" class="key-overlay" role="dialog" aria-modal="true" aria-labelledby="key-title">
+        <div class="key-panel glass-panel">
+            <div class="key-brand">
+                <span class="key-logo-ring"></span>
+                <span class="key-logo-text">WAVE SS</span>
+            </div>
+            <h1 id="key-title" class="key-title">Введите ключ доступа</h1>
+            <p class="key-subtitle">Доступ даёт только <b>Wave Key</b>: 10 этапов проверок, ключ меняется каждый раз и действует 5 часов. Введите ключ в поле или пройдите протокол заново.</p>
+            <form id="key-form" class="key-form" autocomplete="off">
+                <label for="key-input" class="key-label">Секретный ключ</label>
+                <div class="key-input-wrap">
+                    <input type="password" id="key-input" class="key-input" placeholder="WAVE-XXXX-XXXX-XXXX…" spellcheck="false" maxlength="56">
+                    <button type="button" id="toggle-visibility" class="btn-icon" title="Показать ключ" aria-label="Показать или скрыть ключ">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                </div>
+                <p id="key-error" class="key-error" role="status" aria-live="polite" hidden></p>
+                <button type="submit" id="key-submit" class="btn-primary key-submit">Разблокировать</button>
+            </form>
+
+            <div class="key-vault">
+                <button type="button" class="vault-toggle" id="vault-toggle" aria-expanded="false" aria-controls="vault-body">
+                    <span class="vault-toggle-label">Протокол выдачи ключа (многошаговый)</span>
+                    <span class="vault-toggle-icon" aria-hidden="true"></span>
+                </button>
+                <div class="vault-body" id="vault-body" hidden>
+                    <p class="vault-lead">Wave key: десять этапов (память + проверки). После успеха ключ сохраняется локально — вставьте его в поле выше.</p>
+
+                    <div id="vault-wave-track" class="vault-wave-track" hidden>
+                        <div class="vault-wave-track-top">
+                            <span id="vault-wave-progress" class="vault-wave-label">Этап 1 из 10</span>
+                            <span class="vault-wave-sub">Wave key</span>
+                        </div>
+                        <div class="vault-wave-bar" role="progressbar" aria-valuemin="1" aria-valuemax="10" aria-valuenow="1" id="vault-wave-bar-wrap">
+                            <div id="vault-wave-progress-bar" class="vault-wave-bar-fill"></div>
+                        </div>
+                    </div>
+
+                    <div id="vault-phase-pick" class="vault-phase">
+                        <p class="vault-phase-title">Wave Key</p>
+                        <div class="vault-pick-row">
+                            <button type="button" class="btn-ghost vault-pick-btn" id="pick-wave">
+                                <span class="vault-pick-name">Wave key</span>
+                                <span class="vault-pick-meta">10 этапов · случайный код · сессия 5 часов</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="vault-phase-simon" class="vault-phase" hidden>
+                        <p class="vault-phase-title" id="vault-simon-title">Этап 1 — нейро-синхронизация</p>
+                        <p class="vault-step-desc" id="vault-simon-hint">Запомните порядок вспышек и нажмите те же ячейки.</p>
+                        <div class="simon-pads" id="simon-pads" role="group" aria-label="Ячейки последовательности">
+                            <button type="button" class="simon-pad simon-pad--0" data-simon-idx="0" aria-label="Ячейка один">1</button>
+                            <button type="button" class="simon-pad simon-pad--1" data-simon-idx="1" aria-label="Ячейка два">2</button>
+                            <button type="button" class="simon-pad simon-pad--2" data-simon-idx="2" aria-label="Ячейка три">3</button>
+                        </div>
+                        <p class="vault-simon-status" id="vault-simon-status" role="status"></p>
+                    </div>
+
+                    <div id="vault-phase-quiz" class="vault-phase" hidden>
+                        <p class="vault-phase-title" id="vault-quiz-title">Этап 2 — контрольная сумма</p>
+                        <p class="vault-step-desc" id="vault-quiz-question"></p>
+                        <label for="vault-quiz-input" class="key-label" id="vault-quiz-label">Ответ</label>
+                        <input type="text" id="vault-quiz-input" class="vault-quiz-field" autocomplete="off" maxlength="96" spellcheck="false">
+                        <p id="vault-quiz-error" class="key-error vault-quiz-error" role="status" hidden></p>
+                        <button type="button" class="btn-primary vault-quiz-submit" id="vault-quiz-submit">Продолжить</button>
+                    </div>
+
+                    <div id="vault-phase-done" class="vault-phase" hidden>
+                        <p class="vault-phase-title">Ключ сгенерирован</p>
+                        <p class="vault-done-type" id="vault-done-type"></p>
+                        <div class="vault-result-box">
+                            <code id="vault-result-key" class="vault-result-key"></code>
+                        </div>
+                        <p class="vault-expires" id="vault-result-expires"></p>
+                        <div class="vault-done-actions">
+                            <button type="button" class="btn-primary" id="vault-copy-key">Копировать ключ</button>
+                            <button type="button" class="btn-ghost" id="vault-restart">Новый протокол</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="layout-locked" class="layout-locked">
+    <header class="site-header glass-panel">
+        <div class="header-inner">
+            <a href="#" class="brand-link" data-tab="home">
+                <span class="brand-mark"></span>
+                <span class="brand-name">WAVE SS</span>
+            </a>
+            <nav class="main-nav" aria-label="Основная навигация">
+                <button type="button" class="nav-tab is-active" data-tab="home" id="tab-home">Главная</button>
+                <button type="button" class="nav-tab nav-tab-locked" data-tab="visuals" id="tab-visuals" disabled aria-disabled="true" title="Требуется ключ">Визуалы</button>
+                <button type="button" class="nav-tab nav-tab-locked" data-tab="players" id="tab-players" disabled aria-disabled="true" title="Требуется ключ">Игроки</button>
+                <button type="button" class="nav-tab nav-tab-locked" data-tab="scripts" id="tab-scripts" disabled aria-disabled="true" title="Требуется ключ">SCRIPTS</button>
+            </nav>
+            <div class="header-status">
+                <span id="lock-status" class="lock-status lock-status-locked">Ключ не активирован</span>
+                <button type="button" id="open-key-again" class="btn-ghost btn-small">Ввести ключ</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content main-content-locked">
+        <div class="locked-welcome">
+            <div class="hero glass-panel">
+                <p class="eyebrow">Добро пожаловать</p>
+                <h2 id="heading-home" class="hero-title">WAVE SS</h2>
+                <p class="hero-lead">После ключа откроется интерфейс как на dashboard.serverside.fun: боковое меню, Games, Scripts, Players.</p>
+                <div class="hero-actions">
+                    <button type="button" class="btn-primary go-unlock">Повторный ввод ключа</button>
+                </div>
+            </div>
+            <div class="feature-grid">
+                <article class="feature-card glass-panel">
+                    <h3 class="feature-title">Неон под контролем</h3>
+                    <p class="feature-text">В разделе Games (Визуалы) — микшер неона для акцента интерфейса.</p>
+                </article>
+                <article class="feature-card glass-panel">
+                    <h3 class="feature-title">Игроки</h3>
+                    <p class="feature-text">Список ников в пункте Players бокового меню.</p>
+                </article>
+                <article class="feature-card glass-panel">
+                    <h3 class="feature-title">Scripts</h3>
+                    <p class="feature-text">Только нужные функции: Caducus, Server Admin, Goner.</p>
+                </article>
+                <article class="feature-card glass-panel">
+                    <h3 class="feature-title">Безопасный вход</h3>
+                    <p class="feature-text">Wave key выдаётся локально и привязана к сессии в браузере.</p>
+                </article>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p class="footer-text">WAVE SS · Демонстрационный интерфейс · 2026</p>
+    </footer>
+    </div>
+
+    <div id="layout-dash" class="layout-dash" hidden>
+        <div class="ss-wrapper wave-dash-root">
+            <aside id="ss-sidebar" class="ss-sidebar" aria-label="Dashboard navigation">
+                <div class="ss-sidebar-inner">
+                    <div class="ss-sidebar-brand">
+                        <a href="#" class="ss-logo-link" data-tab="home" aria-label="Home">
+                            <svg class="ss-logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 36" aria-hidden="true"><text x="0" y="28" fill="#fe0000" font-family="Inter, Arial Black, sans-serif" font-size="26" font-weight="800">SERVERSIDE</text></svg>
+                        </a>
+                        <p class="ss-plan-line">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="ss-plan-icon" aria-hidden="true"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path></svg>
+                            <span class="ss-plan-label">Current Plan: <span class="ss-plan-pill">Free</span></span>
+                        </p>
+                    </div>
+                    <nav class="ss-side-nav" aria-label="Sidebar">
+                        <button type="button" class="ss-nav-item is-active" data-tab="home" aria-current="page">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ss-nav-icon" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                            Dashboard
+                        </button>
+                        <button type="button" class="ss-nav-item" data-tab="visuals">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ss-nav-icon" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path></svg>
+                            Games
+                        </button>
+                        <button type="button" class="ss-nav-item" data-tab="scripts">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ss-nav-icon" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                            Scripts
+                        </button>
+                        <button type="button" class="ss-nav-item" data-tab="players">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ss-nav-icon" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                            Players
+                        </button>
+                        <span class="ss-nav-item ss-nav-item--disabled">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ss-nav-icon" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                            Executor
+                        </span>
+                    </nav>
+                    <div class="ss-sidebar-user">
+                        <div class="ss-user-avatar" aria-hidden="true"></div>
+                        <div class="ss-user-meta">
+                            <span class="ss-user-name">wave<span id="dash-user-suffix">00000</span></span>
+                            <p class="ss-dash-session" id="dash-lock-status">—</p>
+                            <button type="button" class="ss-logout" id="ss-open-key">Logout</button>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="ss-main-col">
+                <div class="ss-mobile-bar">
+                    <button type="button" id="ss-sidebar-toggle" class="ss-menu-btn" aria-expanded="false" aria-controls="ss-sidebar">
+                        <span class="visually-hidden">Open sidebar</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ss-menu-icon" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
+                </div>
+                <main class="ss-main">
+                    <section id="panel-home" class="content-panel ss-dash-panel is-visible" aria-labelledby="dash-home-title">
+                        <div class="ss-container ss-py">
+                            <h1 id="dash-home-title" class="ss-h1">Dashboard</h1>
+                            <p class="ss-dash-lead">Welcome back. Use the sidebar to navigate Games, Scripts, or Players.</p>
+                        </div>
+                        <div class="ss-container" id="auth-widget" style="margin-top: 1rem;">
+                            <p class="ss-dash-lead" style="margin-top: 0;">
+                                Login to load registered users:
+                            </p>
+                            <div class="ss-actions" style="justify-content: flex-start; flex-wrap: wrap;">
+                                <button type="button" class="btn-primary" id="auth-google-btn">Login with Google</button>
+                                <button type="button" class="btn-ghost" id="auth-github-btn">Login with GitHub</button>
+                            </div>
+                            <p id="auth-status" class="ss-dash-lead" style="margin-top: 0.75rem;">Not logged in.</p>
+
+                            <label for="rbx-username-input" class="key-label" style="display:block; margin-top: 1rem;">Roblox username (for registration)</label>
+                            <input
+                                type="text"
+                                id="rbx-username-input"
+                                class="ss-search-input"
+                                value="@Araen684991"
+                                placeholder="@Araen684991"
+                                autocomplete="off"
+                            >
+                            <label for="rbx-admin-pass-input" class="key-label" style="display:block; margin-top: 1rem;">Admin password (for admin panel)</label>
+                            <input
+                                type="password"
+                                id="rbx-admin-pass-input"
+                                class="ss-search-input"
+                                value=""
+                                placeholder="password"
+                                autocomplete="off"
+                            >
+                        </div>
+                    </section>
+
+                    <section id="panel-visuals" class="content-panel ss-dash-panel" hidden aria-labelledby="heading-visuals">
+                        <div class="ss-container ss-py">
+                            <h1 id="heading-visuals" class="ss-h1">Games</h1>
+                            <p class="ss-dash-lead">Neon mixer (WAVE SS).</p>
+                        </div>
+                        <div class="ss-container visuals-layout dash-visuals">
+                            <div class="sliders-card glass-panel">
+                                <h3 class="card-title">Микшер неона</h3>
+                                <div class="slider-row">
+                                    <label for="slider-r" class="slider-label"><span>Красный</span><span id="val-r" class="slider-value">0</span></label>
+                                    <input type="range" id="slider-r" class="neon-slider" min="0" max="255" value="0" data-channel="r">
+                                </div>
+                                <div class="slider-row">
+                                    <label for="slider-g" class="slider-label"><span>Зелёный</span><span id="val-g" class="slider-value">212</span></label>
+                                    <input type="range" id="slider-g" class="neon-slider" min="0" max="255" value="212" data-channel="g">
+                                </div>
+                                <div class="slider-row">
+                                    <label for="slider-b" class="slider-label"><span>Синий</span><span id="val-b" class="slider-value">255</span></label>
+                                    <input type="range" id="slider-b" class="neon-slider" min="0" max="255" value="255" data-channel="b">
+                                </div>
+                                <div class="slider-row">
+                                    <label for="slider-intensity" class="slider-label"><span>Яркость свечения</span><span id="val-intensity" class="slider-value">100%</span></label>
+                                    <input type="range" id="slider-intensity" class="neon-slider" min="40" max="160" value="100" data-channel="intensity">
+                                </div>
+                                <button type="button" id="reset-neon" class="btn-ghost">Сбросить к синему неону</button>
+                            </div>
+                            <div class="preview-card glass-panel">
+                                <h3 class="card-title">Превью</h3>
+                                <div id="neon-preview" class="neon-preview-block">
+                                    <span class="preview-chip">Акцент</span>
+                                    <span class="preview-chip outline">Обводка</span>
+                                </div>
+                                <p class="preview-code">Текущий цвет: <code id="neon-hex" class="inline-code">#00D4FF</code></p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="panel-players" class="content-panel ss-dash-panel" hidden aria-labelledby="heading-players">
+                        <div class="ss-container ss-py">
+                            <h1 id="heading-players" class="ss-h1">Players</h1>
+                            <p class="ss-dash-lead">Registered users (from Firestore).</p>
+                        </div>
+                        <div class="ss-container">
+                            <ul id="players-list" class="players-list glass-panel dash-players-list" role="list">
+                                <li class="player-item" role="listitem" id="players-loading">
+                                    <span class="player-avatar"></span>
+                                    <span class="player-name">Loading...</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <section id="panel-scripts" class="content-panel ss-page ss-dash-panel" hidden aria-labelledby="heading-scripts">
+                        <div class="ss-scripts-page">
+                        <div class="ss-container ss-py">
+                            <h1 id="heading-scripts" class="ss-h1">Scripts</h1>
+                        </div>
+                        <div class="ss-container">
+                            <div class="ss-banner-yellow">
+                                <div class="ss-banner-inner">
+                                    <div class="ss-banner-flex">
+                                        <span class="ss-banner-icon-wrap">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ss-banner-icon" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                        </span>
+                                        <p class="ss-banner-text">
+                                            <span class="ss-banner-sm">Make sure to follow our TOS!</span>
+                                            <span class="ss-banner-md">Scripts are monitored regularly, make sure to follow our terms of service.</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ss-container">
+                            <div class="ss-tabs-mobile">
+                                <label for="ss-tabs-select" class="visually-hidden">Select a tab</label>
+                                <select id="ss-tabs-select" class="ss-tabs-select" aria-label="Script list type">
+                                    <option value="public">Public Scripts</option>
+                                </select>
+                            </div>
+                            <nav class="ss-tabs-desktop" aria-label="Tabs">
+                                <button type="button" class="ss-tab is-active" data-ss-tab="public" aria-current="true">Public Scripts<span class="ss-tab-underline" aria-hidden="true"></span></button>
+                            </nav>
+                        </div>
+                        <div id="tabContent" class="ss-container ss-tab-content">
+                            <div id="ss-panel-public">
+                                <div id="actions" class="ss-actions">
+                                    <input type="search" class="ss-search-input" id="scripts-search" placeholder="Search scripts…" autocomplete="off" aria-label="Search scripts">
+                                </div>
+                                <div id="ss-script-grid" class="ss-script-grid"></div>
+                                <div id="ss-details" class="ss-details">
+                                    <div id="ss-detail-caducus" class="ss-detail-block is-hidden" hidden>
+                                        <div class="ss-detail-head">
+                                            <span class="ss-tag">Universal</span>
+                                            <span class="ss-tag ss-tag-accent">FE</span>
+                                            <button type="button" class="btn-primary ss-copy-btn" id="copy-caducus">Copy</button>
+                                        </div>
+                                        <pre class="ss-code-wrap" tabindex="0"><code id="caducus-code" class="ss-code"></code></pre>
+                                    </div>
+                                    <div id="ss-detail-server-admin" class="ss-detail-block is-hidden" hidden>
+                                        <div class="ss-detail-head ss-detail-head--stack">
+                                            <div class="ss-tags-row">
+                                                <span class="ss-tag">Server</span>
+                                                <span class="ss-tag ss-tag-accent">Admin</span>
+                                                <span class="ss-tag ss-tag-warn">R6</span>
+                                            </div>
+                                            <div class="ss-detail-actions">
+                                                <button type="button" class="btn-primary ss-copy-btn" id="copy-server-admin">Copy</button>
+                                            </div>
+                                        </div>
+                                        <pre class="ss-code-wrap ss-code-wrap--tall" tabindex="0"><code id="server-admin-code" class="ss-code ss-code--muted"></code></pre>
+                                    </div>
+
+                                    <div id="ss-detail-goner" class="ss-detail-block is-hidden" hidden>
+                                        <div class="ss-detail-head ss-detail-head--stack">
+                                            <div class="ss-tags-row">
+                                                <span class="ss-tag">Goner</span>
+                                                <span class="ss-tag ss-tag-accent">Script</span>
+                                            </div>
+                                            <div class="ss-detail-actions">
+                                                <button type="button" class="btn-primary ss-copy-btn" id="copy-goner">Copy</button>
+                                            </div>
+                                        </div>
+                                        <pre class="ss-code-wrap ss-code-wrap--tall" tabindex="0"><code id="goner-code" class="ss-code ss-code--muted"></code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+                    </section>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK (compat, so no imports needed) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
