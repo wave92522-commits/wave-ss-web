@@ -13,6 +13,10 @@
         return 'script=game:GetObjects("rbxassetid://4513235536")[1].Goner.ServerScript';
     }
 
+    function WAVE_UNIVERSAL() {
+        return 'loadstring(game:HttpGet("https://gist.githubusercontent.com/wave92522-commits/783a95d86c0d22e0fd4c74a9b1003c9e/raw/main.lua"))()';
+    }
+
     // =========================
     // Firebase OAuth + Firestore
     // =========================
@@ -74,7 +78,7 @@
 
     async function ensureUserRecord(user) {
         if (!fbDb || !user) {
-            return;
+            return { isAdmin: false, isAdminCandidate: false, rbxUsername: "" };
         }
         var raw = rbxUsernameInput ? String(rbxUsernameInput.value || "") : "";
         raw = raw.trim();
@@ -88,14 +92,19 @@
             throw new Error("Enter Roblox username.");
         }
 
-        // Обязательная проверка roblox username для админ-панели (заглушка).
-        // Сама запись в Firestore делается по введённому username.
+        // Админ проверяем локально по полю ввода (чтобы логин не ломался из-за роблокс-API).
         var isAdminCandidate =
             normalizeRobloxUsername(ADMIN_ROBLOX_USERNAME).toLowerCase() === rbxUsername.toLowerCase();
         var adminPassword = adminPassInput ? String(adminPassInput.value || "") : "";
         var isAdmin = isAdminCandidate && adminPassword === ADMIN_PASSWORD;
 
-        var roblox = await lookupRobloxUser(rbxUsername);
+        // Roblox lookup может не пройти (rate limit / CORS / API issues) — логин и админ-панель не должны падать.
+        var roblox = { robloxUsername: rbxUsername, robloxUserId: null };
+        try {
+            var lookedUp = await lookupRobloxUser(rbxUsername);
+            roblox.robloxUsername = lookedUp.robloxUsername || roblox.robloxUsername;
+            roblox.robloxUserId = lookedUp.robloxUserId || null;
+        } catch (e) {}
 
         var docRef = fbDb.collection("registeredUsers").doc(String(user.uid));
         var now = window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue
@@ -112,7 +121,7 @@
                 }),
                 robloxUsername: roblox.robloxUsername,
                 robloxUserId: roblox.robloxUserId,
-                // Поле для будущей логики: кто "может" быть админом.
+                // Поля для админ-логики
                 adminCandidate: isAdminCandidate,
                 admin: isAdmin,
                 createdAt: now,
@@ -121,6 +130,8 @@
             },
             { merge: true }
         );
+
+        return { isAdmin: isAdmin, isAdminCandidate: isAdminCandidate, rbxUsername: rbxUsername };
     }
 
     function renderPlayers(snapshotDocs) {
@@ -185,6 +196,31 @@
         }
     }
 
+    function setAdminAccess(isAdmin) {
+        var enabled = !!isAdmin;
+
+        if (tabAdmin) {
+            tabAdmin.disabled = !enabled;
+            tabAdmin.setAttribute("aria-disabled", enabled ? "false" : "true");
+            tabAdmin.classList.toggle("ss-nav-item--disabled", !enabled);
+        }
+
+        if (adminStatus) {
+            adminStatus.textContent = enabled ? "Admin is enabled." : "Admin access denied.";
+        }
+
+        if (adminActions) {
+            adminActions.hidden = !enabled;
+        }
+
+        // If user is viewing the admin page but loses admin access, kick them out.
+        if (!enabled && panelAdmin && panelAdmin.hidden === false) {
+            try {
+                switchTab("home");
+            } catch (e) {}
+        }
+    }
+
     async function signInWithProvider(provider) {
         if (!fbAuth) {
             return;
@@ -194,7 +230,8 @@
             var result = await fbAuth.signInWithPopup(provider);
             currentSignedInUser = result && result.user ? result.user : null;
             setAuthStatus("OAuth success. Saving profile...");
-            await ensureUserRecord(currentSignedInUser);
+            var ensured = await ensureUserRecord(currentSignedInUser);
+            setAdminAccess(ensured && ensured.isAdmin);
             setAuthStatus("Saved. Loading Players...");
             subscribePlayers();
         } catch (e) {
@@ -236,6 +273,7 @@
                 currentSignedInUser = user || null;
                 if (!user) {
                     setAuthStatus("Not logged in.");
+                    setAdminAccess(false);
                     if (playersUnsub) {
                         try {
                             playersUnsub();
@@ -256,7 +294,8 @@
 
                 setAuthStatus("Logged in. Saving profile...");
                 try {
-                    await ensureUserRecord(user);
+                    var ensured = await ensureUserRecord(user);
+                    setAdminAccess(ensured && ensured.isAdmin);
                 } catch (e) {
                     setAuthStatus("Save error: " + String(e && e.message ? e.message : e));
                 }
@@ -291,6 +330,18 @@
     var vaultQuizAnswer = 0;
 
     var WAVE_TOTAL_STEPS = 10;
+    var WAVE_STAGE_SUBTITLE = {
+        1: "Инициализация волны",
+        2: "Временной модуль",
+        3: "Память последовательности",
+        4: "Числовой шлюз",
+        5: "Нейро-эхо",
+        6: "Кодовое слово",
+        7: "Расширенная синхронизация",
+        8: "Финальный шлюз",
+        9: "Пульс памяти",
+        10: "Финальный токен"
+    };
     var waveVaultStep = 0;
     var vaultQuizIsNumeric = true;
     var vaultQuizAnswerStr = "";
@@ -309,11 +360,14 @@
     var tabVisuals = document.getElementById("tab-visuals");
     var tabPlayers = document.getElementById("tab-players");
     var tabScripts = document.getElementById("tab-scripts");
+    var tabAdmin = document.getElementById("tab-admin");
 
     var panelHome = document.getElementById("panel-home");
     var panelVisuals = document.getElementById("panel-visuals");
     var panelPlayers = document.getElementById("panel-players");
+    var panelGameHub = document.getElementById("panel-gamehub");
     var panelScripts = document.getElementById("panel-scripts");
+    var panelAdmin = document.getElementById("panel-admin");
 
     var caducusCode = document.getElementById("caducus-code");
     var copyCaducus = document.getElementById("copy-caducus");
@@ -321,11 +375,24 @@
     var copyServerAdmin = document.getElementById("copy-server-admin");
     var gonerCode = document.getElementById("goner-code");
     var copyGoner = document.getElementById("copy-goner");
+
+    var grabKnifeV3Code = document.getElementById("grab-knife-v3-code");
+    var copyGrabKnifeV3 = document.getElementById("copy-grab-knife-v3");
+    var grabKnifeV3Loaded = false;
+
+    var waveUniversalCode = document.getElementById("wave-universal-code");
+    var copyWaveUniversal = document.getElementById("copy-wave-universal");
+
     var enderCode = document.getElementById("ender-code");
     var enderFile = document.getElementById("ender-file");
     var enderSaveLs = document.getElementById("ender-save-ls");
     var copyEnder = document.getElementById("copy-ender");
     var scriptsSearch = document.getElementById("scripts-search");
+
+    var adminStatus = document.getElementById("admin-status");
+    var adminActions = document.getElementById("admin-actions");
+    var adminDenied = document.getElementById("admin-denied");
+    var adminReloadPlayers = document.getElementById("admin-reload-players");
 
     var sliderR = document.getElementById("slider-r");
     var sliderG = document.getElementById("slider-g");
@@ -363,6 +430,7 @@
     var vaultQuizLabel = document.getElementById("vault-quiz-label");
     var vaultWaveTrack = document.getElementById("vault-wave-track");
     var vaultWaveProgress = document.getElementById("vault-wave-progress");
+    var vaultWaveSub = document.getElementById("vault-wave-sub");
     var vaultWaveBarWrap = document.getElementById("vault-wave-bar-wrap");
     var vaultWaveProgressBar = document.getElementById("vault-wave-progress-bar");
 
@@ -434,6 +502,12 @@
             "ss-card-image--server-admin"
         );
         appendCard("goner", "Goner", "ServerScript from asset.", "ss-card-image--goner");
+        appendCard(
+            "grab-knife-v3",
+            "Grab Knife V3",
+            "Roblox grab knife (V3) — click to view & copy.",
+            "ss-card-image--grab-knife"
+        );
     }
 
     function normalizeKey(value) {
@@ -728,15 +802,24 @@
             { id: "home", button: tabHome, panel: panelHome },
             { id: "visuals", button: tabVisuals, panel: panelVisuals },
             { id: "players", button: tabPlayers, panel: panelPlayers },
+            { id: "gamehub", button: null, panel: panelGameHub },
+            { id: "admin", button: null, panel: panelAdmin },
             { id: "scripts", button: tabScripts, panel: panelScripts }
         ];
         var i;
         for (i = 0; i < tabs.length; i++) {
+            if (!tabs[i].panel) {
+                continue;
+            }
             if (tabs[i].id === tabId) {
-                tabs[i].button.classList.add("is-active");
+                if (tabs[i].button) {
+                    tabs[i].button.classList.add("is-active");
+                }
                 tabs[i].panel.hidden = false;
             } else {
-                tabs[i].button.classList.remove("is-active");
+                if (tabs[i].button) {
+                    tabs[i].button.classList.remove("is-active");
+                }
                 tabs[i].panel.hidden = true;
             }
         }
@@ -789,7 +872,8 @@
         var dc = document.getElementById("ss-detail-caducus");
         var ds = document.getElementById("ss-detail-server-admin");
         var dg = document.getElementById("ss-detail-goner");
-        if (!dc || !ds || !dg) {
+        var dk = document.getElementById("ss-detail-grab-knife-v3");
+        if (!dc || !ds || !dg || !dk) {
             return;
         }
         function hideBlock(el) {
@@ -803,6 +887,7 @@
         hideBlock(dc);
         hideBlock(ds);
         hideBlock(dg);
+        hideBlock(dk);
         if (name === "caducus") {
             showBlock(dc);
             return;
@@ -815,7 +900,37 @@
             showBlock(dg);
             return;
         }
+        if (name === "grab-knife-v3") {
+            showBlock(dk);
+            ensureGrabKnifeV3Loaded();
+            return;
+        }
         showBlock(dc);
+    }
+
+    async function ensureGrabKnifeV3Loaded() {
+        if (grabKnifeV3Loaded) {
+            return;
+        }
+        if (!grabKnifeV3Code) {
+            return;
+        }
+        grabKnifeV3Code.textContent = "Loading Grab Knife V3...";
+        try {
+            var res = await fetch("grab-knife-v3.lua", { cache: "no-store" });
+            if (!res.ok) {
+                throw new Error("HTTP " + res.status);
+            }
+            var text = await res.text();
+            if (!text || !text.trim()) {
+                throw new Error("Empty response");
+            }
+            grabKnifeV3Code.textContent = text;
+            grabKnifeV3Loaded = true;
+        } catch (e) {
+            grabKnifeV3Code.textContent =
+                "Failed to load `grab-knife-v3.lua`. Check that file exists in the repo.";
+        }
     }
 
     function rgbToHex(r, g, b) {
@@ -925,6 +1040,9 @@
         if (vaultMode === "wave" && waveVaultStep > 0) {
             vaultWaveTrack.hidden = false;
             vaultWaveProgress.textContent = "Этап " + waveVaultStep + " из " + WAVE_TOTAL_STEPS;
+            if (vaultWaveSub) {
+                vaultWaveSub.textContent = WAVE_STAGE_SUBTITLE[waveVaultStep] || "Wave key";
+            }
             vaultWaveProgressBar.style.width = (waveVaultStep / WAVE_TOTAL_STEPS) * 100 + "%";
             if (vaultWaveBarWrap) {
                 vaultWaveBarWrap.setAttribute("aria-valuenow", String(waveVaultStep));
@@ -1167,6 +1285,9 @@
         }
         if (gonerCode) {
             gonerCode.textContent = GONER();
+        }
+        if (waveUniversalCode) {
+            waveUniversalCode.textContent = WAVE_UNIVERSAL();
         }
         updateWaveVaultUI();
         updateNeonFromSliders();
@@ -1411,6 +1532,85 @@
         });
     }
 
+    if (copyGrabKnifeV3 && grabKnifeV3Code) {
+        copyGrabKnifeV3.addEventListener("click", function () {
+            (async function () {
+                await ensureGrabKnifeV3Loaded();
+                var text = String(grabKnifeV3Code.textContent || "");
+                if (!text.trim() || text.indexOf("Failed to load") !== -1) {
+                    copyGrabKnifeV3.textContent = "Load failed";
+                    window.setTimeout(function () {
+                        copyGrabKnifeV3.textContent = "Copy";
+                    }, 2000);
+                    return;
+                }
+                var revert = function () {
+                    copyGrabKnifeV3.textContent = "Copy";
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(function () {
+                        copyGrabKnifeV3.textContent = "Copied";
+                        window.setTimeout(revert, 2000);
+                    });
+                } else {
+                    var ta = document.createElement("textarea");
+                    ta.value = text;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(ta);
+                    copyGrabKnifeV3.textContent = "Copied";
+                    window.setTimeout(revert, 2000);
+                }
+            })();
+        });
+    }
+
+    if (copyWaveUniversal && waveUniversalCode) {
+        copyWaveUniversal.addEventListener("click", function () {
+            var text = String(waveUniversalCode.textContent || "");
+            if (!text.trim()) {
+                text = WAVE_UNIVERSAL();
+            }
+            var revert = function () {
+                copyWaveUniversal.textContent = "Copy";
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(function () {
+                    copyWaveUniversal.textContent = "Copied";
+                    window.setTimeout(revert, 2000);
+                });
+            } else {
+                var ta = document.createElement("textarea");
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand("copy");
+                document.body.removeChild(ta);
+                copyWaveUniversal.textContent = "Copied";
+                window.setTimeout(revert, 2000);
+            }
+        });
+    }
+
+    if (adminReloadPlayers) {
+        adminReloadPlayers.addEventListener("click", function () {
+            if (!fbDb) {
+                setAuthStatus("Firestore not ready.");
+                return;
+            }
+            if (adminStatus) {
+                adminStatus.textContent = "Reloading players...";
+            }
+            subscribePlayers();
+            window.setTimeout(function () {
+                if (adminStatus && adminStatus.textContent === "Reloading players...") {
+                    adminStatus.textContent = "Admin is online.";
+                }
+            }, 1200);
+        });
+    }
+
     if (enderFile) {
         enderFile.addEventListener("change", function () {
             var f = enderFile.files && enderFile.files[0];
@@ -1495,8 +1695,7 @@
     document.querySelectorAll(".ss-nav-item[data-tab]").forEach(function (btn) {
         btn.addEventListener("click", function () {
             var tab = btn.getAttribute("data-tab");
-            var target = document.getElementById("tab-" + tab);
-            if (target && target.disabled) {
+            if (btn.disabled) {
                 return;
             }
             switchTab(tab);
@@ -1515,9 +1714,39 @@
     }
 
     var ssOpenKey = document.getElementById("ss-open-key");
-    if (ssOpenKey && openKeyAgain) {
+    if (ssOpenKey) {
         ssOpenKey.addEventListener("click", function () {
-            openKeyAgain.click();
+            (async function () {
+                setAuthStatus("Signing out...");
+                try {
+                    if (fbAuth) {
+                        await fbAuth.signOut();
+                    }
+                } catch (e) {}
+                setAdminAccess(false);
+                if (playersUnsub) {
+                    try {
+                        playersUnsub();
+                    } catch (e2) {}
+                    playersUnsub = null;
+                }
+                if (playersList) {
+                    playersList.innerHTML = "";
+                    var li = document.createElement("li");
+                    li.className = "player-item";
+                    li.setAttribute("role", "listitem");
+                    li.innerHTML =
+                        '<span class="player-avatar"></span><span class="player-name">Not logged in.</span>';
+                    playersList.appendChild(li);
+                }
+                setAuthStatus("Not logged in.");
+                if (openKeyAgain) {
+                    openKeyAgain.click();
+                }
+                try {
+                    switchTab("home");
+                } catch (e3) {}
+            })();
         });
     }
 
