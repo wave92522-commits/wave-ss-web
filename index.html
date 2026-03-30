@@ -44,7 +44,7 @@
                     <div id="vault-wave-track" class="vault-wave-track" hidden>
                         <div class="vault-wave-track-top">
                             <span id="vault-wave-progress" class="vault-wave-label">Этап 1 из 10</span>
-                            <span class="vault-wave-sub">Wave key</span>
+                            <span id="vault-wave-sub" class="vault-wave-sub">Wave key</span>
                         </div>
                         <div class="vault-wave-bar" role="progressbar" aria-valuemin="1" aria-valuemax="10" aria-valuenow="1" id="vault-wave-bar-wrap">
                             <div id="vault-wave-progress-bar" class="vault-wave-bar-fill"></div>
@@ -184,6 +184,14 @@
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ss-nav-icon" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                             Players
                         </button>
+                        <button type="button" class="ss-nav-item" data-tab="gamehub">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ss-nav-icon" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11c1.657 0 3-1.343 3-3S17.657 5 16 5s-3 1.343-3 3 1.343 3 3 3zM8 11c1.657 0 3-1.343 3-3S9.657 5 8 5 5 6.343 5 8s1.343 3 3 3zm8 6c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM8 17c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M8 14h8"></path></svg>
+                            Game Hub
+                        </button>
+                        <button type="button" class="ss-nav-item ss-nav-item--disabled" data-tab="admin" id="tab-admin" disabled aria-disabled="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ss-nav-icon" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v-3m0 0V9m0 3a6 6 0 100-12 6 6 0 000 12z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l2 0m-2 0l2 0m-6 3l2 0m-2 0l2 0M5 9H3m2 0H3m6 3H7m2 0H7"></path></svg>
+                            Admin
+                        </button>
                         <span class="ss-nav-item ss-nav-item--disabled">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ss-nav-icon" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
                             Executor
@@ -296,6 +304,49 @@
                         </div>
                     </section>
 
+                    <section id="panel-gamehub" class="content-panel ss-dash-panel" hidden aria-labelledby="heading-gamehub">
+                        <div class="ss-container ss-py">
+                            <h1 id="heading-gamehub" class="ss-h1">GAME HUB</h1>
+                            <p class="ss-dash-lead">WAVE UNIVERSAL (one-click loader)</p>
+                        </div>
+                        <div class="ss-container">
+                            <div class="glass-panel" style="padding: 1rem;">
+                                <div class="ss-detail-head">
+                                    <span class="ss-tag">Universal</span>
+                                    <span class="ss-tag ss-tag-accent">Wave</span>
+                                    <button type="button" class="btn-primary ss-copy-btn" id="copy-wave-universal">Copy</button>
+                                </div>
+                                <pre class="ss-code-wrap ss-code-wrap--tall" tabindex="0"><code id="wave-universal-code" class="ss-code ss-code--muted"></code></pre>
+                                <p class="ss-dash-lead" style="margin-top: 0.75rem; color: #aab4ce;">
+                                    Paste into your executor/FE and run.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="panel-admin" class="content-panel ss-dash-panel" hidden aria-labelledby="heading-admin">
+                        <div class="ss-container ss-py">
+                            <h1 id="heading-admin" class="ss-h1">Admin Panel</h1>
+                            <p class="ss-dash-lead">Enabled only for admins.</p>
+                        </div>
+                        <div class="ss-container">
+                            <div class="glass-panel" style="padding: 1rem;">
+                                <p id="admin-status" class="ss-dash-lead" style="margin: 0 0 0.75rem;">Checking permissions...</p>
+                                <div id="admin-actions" hidden>
+                                    <p class="ss-dash-lead" style="margin: 0 0 0.75rem; color: #aab4ce;">
+                                        Admin is online. You can use admin-only scripts below.
+                                    </p>
+                                    <div class="ss-actions" style="justify-content: flex-start;">
+                                        <button type="button" class="btn-ghost" id="admin-reload-players">Reload Players</button>
+                                    </div>
+                                </div>
+                                <p id="admin-denied" class="ss-dash-lead" style="margin: 0; color: #aab4ce;">
+                                    Enter the correct Roblox admin password and sign in again.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
                     <section id="panel-scripts" class="content-panel ss-page ss-dash-panel" hidden aria-labelledby="heading-scripts">
                         <div class="ss-scripts-page">
                         <div class="ss-container ss-py">
@@ -367,6 +418,20 @@
                                             </div>
                                         </div>
                                         <pre class="ss-code-wrap ss-code-wrap--tall" tabindex="0"><code id="goner-code" class="ss-code ss-code--muted"></code></pre>
+                                    </div>
+
+                                    <div id="ss-detail-grab-knife-v3" class="ss-detail-block is-hidden" hidden>
+                                        <div class="ss-detail-head ss-detail-head--stack">
+                                            <div class="ss-tags-row">
+                                                <span class="ss-tag">Grab</span>
+                                                <span class="ss-tag ss-tag-accent">Knife</span>
+                                                <span class="ss-tag ss-tag-warn">V3</span>
+                                            </div>
+                                            <div class="ss-detail-actions">
+                                                <button type="button" class="btn-primary ss-copy-btn" id="copy-grab-knife-v3">Copy</button>
+                                            </div>
+                                        </div>
+                                        <pre class="ss-code-wrap ss-code-wrap--tall" tabindex="0"><code id="grab-knife-v3-code" class="ss-code ss-code--muted">Loading...</code></pre>
                                     </div>
                                 </div>
                             </div>
